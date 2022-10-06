@@ -27,7 +27,7 @@ class RISCProcessor:
     def _cmp(self, registers: List[int]) -> (None):
         ''' CMP - compares contents of two registers, if equal then stores result
         in specified status register. Registers are given as integer addresses
-        Eg: CMP 1 2 1
+        Eg: CMP 1 2 1 = dreg[1] == dreg[2] -> sreg[1]
         '''
         d_reg1, d_reg2, s_reg = registers
         if self.data_regs[d_reg1] == self.data_regs[d_reg2]:
@@ -36,36 +36,36 @@ class RISCProcessor:
     def _jmp(self, args: List[int]) -> (None):
         ''' JMP - resets what next instruction is. Possibly conditional on state of
         a given status register
-        Eg: JMP 2 1
+        Eg: JMP 2 1 = if 1, pc = 2, else pc = pc
         '''
         if len(args) == 1:
             self.pc = args[0]
         else:
-            self.pc = args[0] if args[1] else self.pc
+            self.pc = args[0] if self.status_regs[args[1]] else self.pc
 
     def _load(self, args: List[int]) -> (None):
         '''LOAD - transfers contents of memory location to data register
-        Eg: LOAD 1 1
+        Eg: LOAD 0 1 = mem[0] -> dreg[1]
         '''
         self.data_regs[args[1]] = self.memory.get(args[0], 0)
 
     def _store(self, args: List[int]) -> (None):
         '''STORE - transfers contents of data register to specified memory location
-        Eg: STORE 1 1
+        Eg: STORE 0 1 = dreg[0] -> dreg[1]
         '''
         self.memory[args[1]] = self.data_regs[args[0]]
 
     def _add(self, args: List[int]) -> (None):
         '''ADD - adds contents of two specified data registers and leaves result
         in specified target data register
-        Eg: ADD 1 1 1
+        Eg: ADD 0 1 2 = dreg[0] + dreg[1] -> dreg[2]
         '''
         self.data_regs[args[2]] = self.data_regs[args[0]] + self.data_regs[args[1]]
 
     def _sub(self, args: List[int]) -> (None):
         '''SUB - subtracts first data register from second and leaves result in
         specified target data register
-        Eg: SUB 1 1 1
+        Eg: SUB 0 1 2 = d[0] - d[1] -> d[2]
         '''
         self.data_regs[args[2]] = self.data_regs[args[0]] - self.data_regs[args[1]]
 
@@ -121,8 +121,9 @@ class RISCProcessor:
         while self.run:
             if self.pc in self.memory.keys():
                 cur_instr = self.memory[self.pc]
-                print(cur_instr)
                 self.pc += 1
+                if type(cur_instr) == int:
+                    continue
                 instr = cur_instr[0]
                 self.instrs[instr](list(map(int, cur_instr[1:]))) # cast addresses to integers from str.
             else:
@@ -148,3 +149,8 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+'''
+TODO:
+* able to use direct numbers in add/sub as well as memory addresses
+'''
