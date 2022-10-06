@@ -69,6 +69,30 @@ class RISCProcessor:
         '''
         self.data_regs[args[2]] = self.data_regs[args[0]] - self.data_regs[args[1]]
 
+    def parseInputData(self) -> (None):
+        '''Attempts to read ./inputdata.txt which contains data register locations & values to be put
+        in those locations. Catches errors such as incorrect number of arguments and incorrect address type'''
+        inputdatafile = open('inputdata.txt')
+        while True:
+            line = inputdatafile.readline()
+            if not line:
+                break
+            line_as_arr = list(map(int, line.strip().split(' '))) # convert strings to ints
+            if len(line_as_arr) != 2:
+                inputdatafile.close()
+                raise Exception("Lines should contain exactly two numbers: [address] [data]")
+            addr, data = line_as_arr
+            if addr < len(self.data_regs):
+                try:
+                    self.data_regs[addr] = data
+                except KeyError:
+                    inputdatafile.close()
+                    raise Exception("Address should be a number")
+            else:
+                raise Exception("Memory address {addr} not in range: 0-{maxaddr}"
+                .format(addr = addr, maxaddr = len(self.data_regs)-1))
+        inputdatafile.close()
+
     def loadProgramToMemory(self) -> (None):
         '''Attempts to read ./program.txt and loads program into memory whereby program.txt is a list of
         line-separated instructions'''
@@ -118,6 +142,7 @@ class RISCProcessor:
 
 def main():
     myRiscProcessor = RISCProcessor()
+    myRiscProcessor.parseInputData()
     myRiscProcessor.loadProgramToMemory()
     myRiscProcessor.execute()
 
