@@ -3,15 +3,15 @@ from typing import List
 
 
 class RISCProcessor:
-    def __init__(self):
+    def __init__(self, data_reg_size =10, status_reg_size =10, memory_size =10):
         # look-up table for instructions
         self.instrs = { 'NOP': self._nop, 'HALT': self._halt, 'CMP': self._cmp,
         'JMP': self._jmp, 'LOAD': self._load, 'STORE': self._store, 'ADD': self._add,
         'SUB': self._sub }
 
         # system variables
-        self.data_regs = {}
-        self.status_regs = {}
+        self.data_regs = { x: 0 for x in range(data_reg_size) }
+        self.status_regs = { x: 0 for x in range(status_reg_size) }
         self.memory = {}
         self.pc = 0
         self.run = True
@@ -47,7 +47,7 @@ class RISCProcessor:
         '''LOAD - transfers contents of memory location to data register
         Eg: LOAD 1 1
         '''
-        self.data_regs[args[1]] = self.memory[args[0]]
+        self.data_regs[args[1]] = self.memory.get(args[0], 0)
 
     def _store(self, args: List[int]) -> (None):
         '''STORE - transfers contents of data register to specified memory location
@@ -81,6 +81,11 @@ class RISCProcessor:
             self.memory[line_num] = line.strip().split(' ')
             line_num += 1
         programfile.close()
+        '''TODO:
+        * check registers/memory are in range?
+        * check valid number of params for each instr
+        * declutter (spaces, newline, punctuation etc)
+        '''
 
     def execute(self) -> (None):
         '''Executes the program using the following logic:
@@ -92,9 +97,10 @@ class RISCProcessor:
         while self.run:
             if self.pc in self.memory.keys():
                 cur_instr = self.memory[self.pc]
+                print(cur_instr)
                 self.pc += 1
                 instr = cur_instr[0]
-                self.instrs[instr](cur_instr[1:])
+                self.instrs[instr](list(map(int, cur_instr[1:]))) # cast addresses to integers from str.
             else:
                 break
         print('### BEGIN STATUS REGISTERS ###')
