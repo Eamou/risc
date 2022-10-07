@@ -3,70 +3,77 @@ from typing import List, Tuple
 
 
 class RISCProcessor:
-    def __init__(self, data_reg_size =10, status_reg_size =10, memory_size =10):
+    def __init__(self, data_reg_size =10, status_reg_size =10):
         # look-up table for instructions
         self.instrs = { 'NOP': self._nop, 'HALT': self._halt, 'CMP': self._cmp,
         'JMP': self._jmp, 'LOAD': self._load, 'STORE': self._store, 'ADD': self._add,
         'SUB': self._sub }
 
         # system variables
-        self.data_regs = { x: 0 for x in range(data_reg_size) }
-        self.status_regs = { x: 0 for x in range(status_reg_size) }
+        self.data_regs = { str(x): 0 for x in range(data_reg_size) }
+        self.status_regs = { str(x): 0 for x in range(status_reg_size) }
         self.memory = {}
         self.pc = 0
         self.run = True
 
-    def _nop(self, *args: List[int]) -> (None):
+    def _nop(self) -> (None):
         ''' NOP - does nothing to machine state'''
         return
 
-    def _halt(self, *args: List[int]) -> (None):
+    def _halt(self) -> (None):
         ''' HALT - stops machine'''
         self.run = False
 
-    def _cmp(self, registers: List[int]) -> (None):
+    def _cmp(self, args: List[str]) -> (None):
         ''' CMP - compares contents of two registers, if equal then stores result
         in specified status register. Registers are given as integer addresses
         Eg: CMP 1 2 1 = dreg[1] == dreg[2] -> sreg[1]
         '''
-        d_reg1, d_reg2, s_reg = registers
-        self.status_regs[s_reg] = self.data_regs[d_reg1] == self.data_regs[d_reg2]
+        s_reg = args[2]
+        arg1 = int(args[0][1:]) if args[0][0] == '#' else self.data_regs[args[0]]
+        arg2 = int(args[1][1:]) if args[1][0] == '#' else self.data_regs[args[1]]
+        self.status_regs[s_reg] = arg1 == arg2
     
-    def _jmp(self, args: List[int]) -> (None):
+    def _jmp(self, args: List[str]) -> (None):
         ''' JMP - resets what next instruction is. Possibly conditional on state of
         a given status register
         Eg: JMP 2 1 = if 1, pc = 2, else pc = pc
         '''
         if len(args) == 1:
-            self.pc = args[0]
+            self.pc = int(args[0])
         else:
-            self.pc = args[0] if self.status_regs[args[1]] else self.pc
+            self.pc = int(args[0]) if self.status_regs[args[1]] else self.pc
 
-    def _load(self, args: List[int]) -> (None):
+    def _load(self, args: List[str]) -> (None):
         '''LOAD - transfers contents of memory location to data register
         Eg: LOAD 0 1 = mem[0] -> dreg[1]
         '''
         self.data_regs[args[1]] = self.memory.get(args[0], 0)
 
-    def _store(self, args: List[int]) -> (None):
+    def _store(self, args: List[str]) -> (None):
         '''STORE - transfers contents of data register to specified memory location
         Eg: STORE 0 1 = dreg[0] -> dreg[1]
         '''
         self.memory[args[1]] = self.data_regs[args[0]]
 
-    def _add(self, args: List[int]) -> (None):
+    def _add(self, args: List[str]) -> (None): # can you combine the arithmetic into one function?
         '''ADD - adds contents of two specified data registers and leaves result
         in specified target data register
         Eg: ADD 0 1 2 = dreg[0] + dreg[1] -> dreg[2]
+        Eg2: ADD #0 #1 2 = 0 + 1 -> dreg[2]
         '''
-        self.data_regs[args[2]] = self.data_regs[args[0]] + self.data_regs[args[1]]
+        arg1 = int(args[0][1:]) if args[0][0] == '#' else self.data_regs[args[0]]
+        arg2 = int(args[1][1:]) if args[1][0] == '#' else self.data_regs[args[1]]
+        self.data_regs[args[2]] = arg1 + arg2
 
-    def _sub(self, args: List[int]) -> (None):
+    def _sub(self, args: List[str]) -> (None):
         '''SUB - subtracts first data register from second and leaves result in
         specified target data register
         Eg: SUB 0 1 2 = d[0] - d[1] -> d[2]
         '''
-        self.data_regs[args[2]] = self.data_regs[args[0]] - self.data_regs[args[1]]
+        arg1 = int(args[0][1:]) if args[0][0] == '#' else self.data_regs[args[0]]
+        arg2 = int(args[1][1:]) if args[1][0] == '#' else self.data_regs[args[1]]
+        self.data_regs[args[2]] = arg1 - arg2
 
     def parseInputData(self) -> (None):
         '''Attempts to read ./inputdata.txt which contains data register locations & values to be put
@@ -76,18 +83,19 @@ class RISCProcessor:
             line = inputdatafile.readline()
             if not line:
                 break
-            line_as_arr = list(map(int, line.strip().split(' '))) # convert strings to ints
+            line_as_arr = line.strip().split(' ') # convert strings to ints
             if len(line_as_arr) != 2:
                 inputdatafile.close()
                 raise Exception("Lines should contain exactly two numbers: [address] [data]")
             addr, data = line_as_arr
-            if addr < len(self.data_regs):
+            if int(addr) < len(self.data_regs):
                 try:
-                    self.data_regs[addr] = data
+                    self.data_regs[addr] = int(data)
                 except KeyError:
                     inputdatafile.close()
                     raise Exception("Address should be a number")
             else:
+                inputdatafile.close()
                 raise Exception("Memory address {addr} not in range: 0-{maxaddr}"
                 .format(addr = addr, maxaddr = len(self.data_regs)-1))
         inputdatafile.close()
@@ -101,9 +109,27 @@ class RISCProcessor:
         else:
             if instr_word == "NOP" or instr_word == "HALT":
                 return (True, "") if len(instr) == 1 else (False, instr_word + " should have 0 arguments")
-            elif instr_word == "CMP" or instr_word == "ADD" or instr_word == "SUB":
-                if len(instr) != 4: # correct number of arguments for these instrs
+            elif instr_word == "ADD" or instr_word == "SUB" or instr_word == "CMP":
+                if len(instr) != 4:
                     return (False, instr_word + " should have 3 arguments")
+                else: # handle direct values as arguments
+                    for arg in instr[1:3]: # middle 2 can be int or #int
+                        try:
+                            int(arg)
+                        except ValueError:
+                            if arg[0] != '#' or len(arg) == 1: # cannot be just #, but must start with #
+                                return (False, instr_word + " arguments 1 and 2 must be int or #int")
+                            else:
+                                try: # anything after # must be an integer
+                                    int(arg[1:])
+                                except:
+                                    return (False, instr_word + " # must be followed by integer")
+                    try:
+                        int(instr[3])
+                        return (True, "")
+                    except ValueError:
+                        return (False, instr_word + " final argument must be int")
+                        
             elif instr_word == "LOAD" or instr_word == "STORE":
                 if len(instr) != 3:
                     return (False, instr_word + " should have 2 arguments")
@@ -113,10 +139,14 @@ class RISCProcessor:
             else:
                 return (False, instr_word + " is not a valid keyword")
             try:
-                list(map(int,instr[1:]))
+                list(map(int,instr[1:])) # try to convert args to ints from strs
                 return (True, "")
             except ValueError:
                 return (False, "Arguments should be integers")
+        '''TODO:
+        * check registers/memory are in range?
+        * comments?
+        '''
 
     def loadProgramToMemory(self) -> (None):
         '''Attempts to read ./program.txt and loads program into memory whereby program.txt is a list of
@@ -136,11 +166,6 @@ class RISCProcessor:
                 raise Exception("line {ln}: {err}".format(ln = line_num+1, err = err))
             line_num += 1
         programfile.close()
-        '''TODO:
-        * check registers/memory are in range?
-        * check valid number of params for each instr
-        * declutter (spaces, newline, punctuation etc)
-        '''
 
     def execute(self) -> (None):
         '''Executes the program using the following logic:
@@ -153,10 +178,10 @@ class RISCProcessor:
             if self.pc in self.memory.keys():
                 cur_instr = self.memory[self.pc]
                 self.pc += 1
-                if type(cur_instr) == int:
+                if type(cur_instr) == int: # skip any memory locations that aren't instructions
                     continue
                 instr = cur_instr[0]
-                self.instrs[instr](list(map(int, cur_instr[1:]))) # cast addresses to integers from str.
+                self.instrs[instr](cur_instr[1:]) # cast addresses to integers from str.
             else:
                 break
         print('### BEGIN STATUS REGISTERS ###')
@@ -184,4 +209,10 @@ if __name__ == '__main__':
 '''
 TODO:
 * able to use direct numbers in add/sub as well as memory addresses
+* MULT (DIV?)
+* complexity metric
+* factorial/sum
+* linked lists how?
+* test suite
+* cache?
 '''
