@@ -1,5 +1,5 @@
 
-from typing import List
+from typing import List, Tuple
 
 
 class RISCProcessor:
@@ -30,8 +30,7 @@ class RISCProcessor:
         Eg: CMP 1 2 1 = dreg[1] == dreg[2] -> sreg[1]
         '''
         d_reg1, d_reg2, s_reg = registers
-        if self.data_regs[d_reg1] == self.data_regs[d_reg2]:
-            self.status_regs[s_reg] = True
+        self.status_regs[s_reg] = self.data_regs[d_reg1] == self.data_regs[d_reg2]
     
     def _jmp(self, args: List[int]) -> (None):
         ''' JMP - resets what next instruction is. Possibly conditional on state of
@@ -93,6 +92,32 @@ class RISCProcessor:
                 .format(addr = addr, maxaddr = len(self.data_regs)-1))
         inputdatafile.close()
 
+    def _validateInstruction(self, instr: List[str]) -> (Tuple[bool, str]):
+        '''This function will validate a given line from program.txt to see if it
+        is a valid instruction as per keywords, number of and type of arguments'''
+        instr_word = instr[0]
+        if len(instr_word) < 3 or len(instr_word) > 5:
+            return (False, instr_word + " is not a valid keyword")
+        else:
+            if instr_word == "NOP" or instr_word == "HALT":
+                return (True, "") if len(instr) == 1 else (False, instr_word + " should have 0 arguments")
+            elif instr_word == "CMP" or instr_word == "ADD" or instr_word == "SUB":
+                if len(instr) != 4: # correct number of arguments for these instrs
+                    return (False, instr_word + " should have 3 arguments")
+            elif instr_word == "LOAD" or instr_word == "STORE":
+                if len(instr) != 3:
+                    return (False, instr_word + " should have 2 arguments")
+            elif instr_word == "JMP":
+                if len(instr) < 2 or len(instr) > 3:
+                    return (False, instr_word + " should have 1 or 2 arguments")
+            else:
+                return (False, instr_word + " is not a valid keyword")
+            try:
+                list(map(int,instr[1:]))
+                return (True, "")
+            except ValueError:
+                return (False, "Arguments should be integers")
+
     def loadProgramToMemory(self) -> (None):
         '''Attempts to read ./program.txt and loads program into memory whereby program.txt is a list of
         line-separated instructions'''
@@ -102,7 +127,13 @@ class RISCProcessor:
             line = programfile.readline()
             if not line:
                 break
-            self.memory[line_num] = line.strip().split(' ')
+            line_as_arr = line.strip().split(' ')
+            valid_instr, err = self._validateInstruction(line_as_arr)
+            if valid_instr:
+                self.memory[line_num] = line_as_arr
+            else:
+                programfile.close()
+                raise Exception("line {ln}: {err}".format(ln = line_num+1, err = err))
             line_num += 1
         programfile.close()
         '''TODO:
