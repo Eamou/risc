@@ -5,9 +5,9 @@ from typing import List, Tuple
 class RISCProcessor:
     def __init__(self, data_reg_size =10, status_reg_size =10):
         # look-up table for instructions
-        self.instrs = { 'NOP': self._nop, 'HALT': self._halt, 'CMP': self._cmp,
-        'JMP': self._jmp, 'LOAD': self._load, 'STORE': self._store, 'ADD': (lambda x: self._math(x, '+')),
-        'SUB': (lambda x: self._math(x, '-')), 'MULT': lambda x: self._math(x, '*') }
+        self.instrs = { 'NOP': (lambda x: x), 'HALT': self._halt, 'CMP': (lambda x: self._logic(x, '=')),
+        'JMP': self._jmp, 'LOAD': self._load, 'STORE': self._store, 'ADD': (lambda x: self._logic(x, '+')),
+        'SUB': (lambda x: self._logic(x, '-')), 'MULT': lambda x: self._logic(x, '*') }
 
         # system variables
         self.data_regs = { str(x): 0 for x in range(data_reg_size) }
@@ -16,23 +16,9 @@ class RISCProcessor:
         self.pc = 0
         self.run = True
 
-    def _nop(self) -> (None):
-        ''' NOP - does nothing to machine state'''
-        return
-
-    def _halt(self) -> (None):
+    def _halt(self, *args) -> (None):
         ''' HALT - stops machine'''
         self.run = False
-
-    def _cmp(self, args: List[str]) -> (None):
-        ''' CMP - compares contents of two registers, if equal then stores result
-        in specified status register. Registers are given as integer addresses
-        Eg: CMP 1 2 1 = dreg[1] == dreg[2] -> sreg[1]
-        '''
-        s_reg = args[2]
-        arg1 = int(args[0][1:]) if args[0][0] == '#' else self.data_regs[args[0]]
-        arg2 = int(args[1][1:]) if args[1][0] == '#' else self.data_regs[args[1]]
-        self.status_regs[s_reg] = arg1 == arg2
     
     def _jmp(self, args: List[str]) -> (None):
         ''' JMP - resets what next instruction is. Possibly conditional on state of
@@ -56,7 +42,7 @@ class RISCProcessor:
         '''
         self.memory[args[1]] = self.data_regs[args[0]]
 
-    def _math(self, args: List[str], mode: str) -> (None):
+    def _logic(self, args: List[str], mode: str) -> (None):
         '''Deriving from the lambda functions in the instruction dictionary, this
         function performs arithmetic operations'''
         arg1 = int(args[0][1:]) if args[0][0] == '#' else self.data_regs[args[0]]
@@ -68,6 +54,8 @@ class RISCProcessor:
             self.data_regs[args[2]] = arg1 - arg2
         elif mode == "*":
             self.data_regs[args[2]] = arg1 * arg2
+        elif mode == "=":
+            self.status_regs[args[2]] = arg1 == arg2
 
     def parseInputData(self) -> (None):
         '''Attempts to read ./inputdata.txt which contains data register locations & values to be put
