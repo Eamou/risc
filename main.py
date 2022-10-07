@@ -7,7 +7,7 @@ class RISCProcessor:
         # look-up table for instructions
         self.instrs = { 'NOP': self._nop, 'HALT': self._halt, 'CMP': self._cmp,
         'JMP': self._jmp, 'LOAD': self._load, 'STORE': self._store, 'ADD': self._add,
-        'SUB': self._sub }
+        'SUB': self._sub, 'MULT': self._mult }
 
         # system variables
         self.data_regs = { str(x): 0 for x in range(data_reg_size) }
@@ -62,18 +62,32 @@ class RISCProcessor:
         Eg: ADD 0 1 2 = dreg[0] + dreg[1] -> dreg[2]
         Eg2: ADD #0 #1 2 = 0 + 1 -> dreg[2]
         '''
-        arg1 = int(args[0][1:]) if args[0][0] == '#' else self.data_regs[args[0]]
-        arg2 = int(args[1][1:]) if args[1][0] == '#' else self.data_regs[args[1]]
-        self.data_regs[args[2]] = arg1 + arg2
+        self._math(args, '+')
 
     def _sub(self, args: List[str]) -> (None):
         '''SUB - subtracts first data register from second and leaves result in
         specified target data register
         Eg: SUB 0 1 2 = d[0] - d[1] -> d[2]
         '''
+        self._math(args, '-')
+
+    def _mult(self, args: List[str]) -> (None):
+        '''MULT - multiplies first data register with second data registers
+        and leaves result in target data register'''
+        self._math(args, '*')
+
+    def _math(self, args: List[str], mode: str) -> (None):
+        '''Performs the actual arithmetic to remove code redundancy from
+        _add, _sub_ etc and enable easy extension'''
         arg1 = int(args[0][1:]) if args[0][0] == '#' else self.data_regs[args[0]]
+        # use absolute value if # present, otherwise fetch from data register
         arg2 = int(args[1][1:]) if args[1][0] == '#' else self.data_regs[args[1]]
-        self.data_regs[args[2]] = arg1 - arg2
+        if mode == '+':
+            self.data_regs[args[2]] = arg1 + arg2
+        elif mode == '-':
+            self.data_regs[args[2]] = arg1 - arg2
+        elif mode == "*":
+            self.data_regs[args[2]] = arg1 * arg2
 
     def parseInputData(self) -> (None):
         '''Attempts to read ./inputdata.txt which contains data register locations & values to be put
@@ -109,7 +123,7 @@ class RISCProcessor:
         else:
             if instr_word == "NOP" or instr_word == "HALT":
                 return (True, "") if len(instr) == 1 else (False, instr_word + " should have 0 arguments")
-            elif instr_word == "ADD" or instr_word == "SUB" or instr_word == "CMP":
+            elif instr_word == "ADD" or instr_word == "SUB" or instr_word == "CMP" or instr_word == "MULT":
                 if len(instr) != 4:
                     return (False, instr_word + " should have 3 arguments")
                 else: # handle direct values as arguments
