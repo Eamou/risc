@@ -15,6 +15,7 @@ class RISCProcessor:
         self.memory = {}
         self.pc = 0
         self.run = True
+        self.complexity = 0;
 
     def _halt(self, *args) -> (None):
         ''' HALT - stops machine'''
@@ -29,18 +30,21 @@ class RISCProcessor:
             self.pc = int(args[0])
         else:
             self.pc = int(args[0]) if self.status_regs[args[1]] else self.pc
+        self.complexity += 4
 
     def _load(self, args: List[str]) -> (None):
         '''LOAD - transfers contents of memory location to data register
         Eg: LOAD 0 1 = mem[0] -> dreg[1]
         '''
         self.data_regs[args[1]] = self.memory.get(args[0], 0)
+        self.complexity += 2
 
     def _store(self, args: List[str]) -> (None):
         '''STORE - transfers contents of data register to specified memory location
         Eg: STORE 0 1 = dreg[0] -> dreg[1]
         '''
         self.memory[args[1]] = self.data_regs[args[0]]
+        self.complexity += 2
 
     def _logic(self, args: List[str], mode: str) -> (None):
         '''Deriving from the lambda functions in the instruction dictionary, this
@@ -56,11 +60,15 @@ class RISCProcessor:
             self.data_regs[args[2]] = arg1 * arg2
         elif mode == "=":
             self.status_regs[args[2]] = arg1 == arg2
+        self.complexity += 4
 
-    def parseInputData(self) -> (None):
+    def parseInputData(self, filename: str ='inputdata.txt') -> (None):
         '''Attempts to read ./inputdata.txt which contains data register locations & values to be put
         in those locations. Catches errors such as incorrect number of arguments and incorrect address type'''
-        inputdatafile = open('inputdata.txt')
+        try:
+            inputdatafile = open(filename, 'r')
+        except FileNotFoundError:
+            raise Exception("{filename} does not exist, please check the path".format(filename=filename))
         while True:
             line = inputdatafile.readline()
             if not line:
@@ -130,10 +138,13 @@ class RISCProcessor:
         * comments?
         '''
 
-    def loadProgramToMemory(self) -> (None):
+    def loadProgramToMemory(self, filename: str ='program.txt') -> (None):
         '''Attempts to read ./program.txt and loads program into memory whereby program.txt is a list of
         line-separated instructions'''
-        programfile = open('program.txt', 'r')
+        try:
+            programfile = open(filename, 'r')
+        except FileNotFoundError:
+            raise Exception("{filename} does not exist, please check path".format(filename=filename))
         line_num = 0
         while True:
             line = programfile.readline()
@@ -149,7 +160,7 @@ class RISCProcessor:
             line_num += 1
         programfile.close()
 
-    def execute(self) -> (None):
+    def execute(self) -> (Tuple[dict, dict, dict, int, int]):
         '''Executes the program using the following logic:
         1) Retrieve instruction from memory address specified by Program Counter (pc)
         2) Increment program counter
@@ -166,24 +177,28 @@ class RISCProcessor:
                 self.instrs[instr](cur_instr[1:]) # cast addresses to integers from str.
             else:
                 break
-        print('### BEGIN STATUS REGISTERS ###')
-        print(self.status_regs)
-        print('### END STATUS REGISTERS ###\n')
-        print('### BEGIN DATA REGISTERS ###')
-        print(self.data_regs)
-        print('### END DATA REGISTERS ###\n')
-        print('### BEGIN MEMORY ###')
-        print(self.memory)
-        print('### END MEMORY ###\n')
-        print('### BEING PC ###')
-        print(self.pc)
-        print('### END PC ###')
+        return (self.status_regs, self.data_regs, self.memory, self.pc, self.complexity)
+
 
 def main():
     myRiscProcessor = RISCProcessor()
-    myRiscProcessor.parseInputData()
-    myRiscProcessor.loadProgramToMemory()
-    myRiscProcessor.execute()
+    myRiscProcessor.parseInputData('./algos/sum/inputdata.txt')
+    myRiscProcessor.loadProgramToMemory('./algos/sum/program.txt')
+    status_regs, data_regs, memory, pc, complexity = myRiscProcessor.execute()
+
+    print('### BEGIN STATUS REGISTERS ###')
+    print(status_regs)
+    print('### END STATUS REGISTERS ###\n')
+    print('### BEGIN DATA REGISTERS ###')
+    print(data_regs)
+    print('### END DATA REGISTERS ###\n')
+    print('### BEGIN MEMORY ###')
+    print(memory)
+    print('### END MEMORY ###\n')
+    print('### BEING PC ###')
+    print(pc)
+    print('### END PC ###\n')
+    print('COMPLEXITY: ', complexity)
 
 if __name__ == '__main__':
     main()
@@ -191,7 +206,6 @@ if __name__ == '__main__':
 '''
 TODO:
 * DIV
-* complexity metric
 * linked lists how?
 * test suite
 * cache?
