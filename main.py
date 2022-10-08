@@ -44,7 +44,7 @@ class RISCProcessor:
 
     def _logic(self, args: List[str], mode: str) -> (None):
         '''Deriving from the lambda functions in the instruction dictionary, this
-        function performs arithmetic operations'''
+        function performs arithmetic and comparison operations'''
         arg1 = int(args[0][1:]) if args[0][0] == '#' else self.data_regs[args[0]]
         # use absolute value if # present, otherwise fetch from data register
         arg2 = int(args[1][1:]) if args[1][0] == '#' else self.data_regs[args[1]]
@@ -190,10 +190,8 @@ if __name__ == '__main__':
 
 '''
 TODO:
-* able to use direct numbers in add/sub as well as memory addresses
-* MULT (DIV?)
+* DIV
 * complexity metric
-* factorial/sum
 * linked lists how?
 * test suite
 * cache?
