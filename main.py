@@ -1,9 +1,9 @@
 
-from typing import List, Tuple
+from typing import List, OrderedDict, Tuple
 
 
 class RISCProcessor:
-    def __init__(self, data_reg_size =10, status_reg_size =10):
+    def __init__(self, data_reg_size: int =10, status_reg_size: int =10, cache_size: int =4):
         # look-up table for instructions
         self.instrs = { 'NOP': (lambda x: x), 'HALT': self._halt, 'CMP': (lambda x: self._logic(x, '=')),
         'JMP': self._jmp, 'LOAD': self._load, 'STORE': self._store, 'ADD': (lambda x: self._logic(x, '+')),
@@ -13,7 +13,8 @@ class RISCProcessor:
         self.data_regs = { str(x): 0 for x in range(data_reg_size) }
         self.status_regs = { str(x): 0 for x in range(status_reg_size) }
         self.memory = {}
-        self.cache = {}
+        self.cache = OrderedDict()
+        self.cache_capacity = cache_size
         self.pc = 0
         self.run = True
         self.complexity = 0
@@ -22,10 +23,13 @@ class RISCProcessor:
         '''Attempt to retrieve data from the cache - if not present, add it to
         the cache based on LRU replacement policy, and fetch from memory instead.'''
         if addr in self.cache.keys():
+            self.cache.move_to_end(addr)
             return self.cache[addr]
         else:
-            # add LRU policy
             self.cache[addr] = self.data_regs[addr]
+            self.cache.move_to_end(addr)
+            if len(self.cache) > self.cache_capacity:
+                self.cache.popitem(last = False)
             return self.data_regs[addr]
 
     def _write(self, addr: str, data: int) -> (None):
@@ -181,7 +185,7 @@ class RISCProcessor:
             line_num += 1
         programfile.close()
 
-    def execute(self) -> (Tuple[dict[str, int], dict[str, int], dict[int, int], dict[str, int], int, int]):
+    def execute(self) -> (Tuple[dict[str, int], dict[str, int], dict[int, int], OrderedDict[str, int], int, int]):
         '''Executes the program using the following logic:
         1) Retrieve instruction from memory address specified by Program Counter (pc)
         2) Increment program counter
@@ -203,8 +207,8 @@ class RISCProcessor:
 
 def main():
     myRiscProcessor = RISCProcessor()
-    myRiscProcessor.parseInputData('./algos/factorial/inputdata.txt')
-    myRiscProcessor.loadProgramToMemory('./algos/factorial/program.txt')
+    myRiscProcessor.parseInputData('./inputdata.txt')
+    myRiscProcessor.loadProgramToMemory('./program.txt')
     status_regs, data_regs, memory, cache, pc, complexity = myRiscProcessor.execute()
 
     print('### BEGIN STATUS REGISTERS ###')
@@ -230,7 +234,5 @@ if __name__ == '__main__':
 '''
 TODO:
 * DIV
-* linked lists how?
-* cache?
 * binary encoding
 '''

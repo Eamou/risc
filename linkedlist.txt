@@ -1,0 +1,20 @@
+LINKEDLIST PROPOSAL
+To implement linked lists in our RISC processor, we propose the following scheme:
+*   Each item in the list consists of two elements: the data, and the 'pointer'.
+    For convenience we may store these two next in neighbouring contiguous register
+    locations.
+
+    Without loss of generality, we may say the first register contains the data, and
+    the second the pointer. The traversal algorithm is as follows, being given the
+    location of the first item to start:
+    1) Read the data at the current register index
+    2) Increment our register index by 1
+    3) Read the data at the new register index and store as current register index
+    4) Go to step 1), unless the new register index indicates the end of the list.
+
+    Naturally, we can store the elements of the list anywhere in memory - list elements
+    are not required to be in contiguous blocks of registers.
+    In implementation, we should be careful to mind the end of memory where it may be possible
+    to 'overrun', where the data is the last available memory element and we hence have
+    nowhere to store our 'pointer'. We must similarly be careful when storing data next
+    to existing pieces of memory.
