@@ -1,27 +1,29 @@
 
 from main import RISCProcessor
 
+def failString(testname: str, component: str, position, expected: int, actual) -> (str):
+    '''create the string used to describe a test failure, given the components of the test'''
+    return  "test: {name} - {comp} {k}: excpected: {e} | actual: {a}"\
+            .format(name=testname, comp=component, k=int(position), e=expected, a=actual)
+
 def test(testname:str, inputfile: str, programfile: str, sreg_vals: dict[str, int], dreg_vals: dict[str, int],\
          mem_vals: dict[int, int], cache_vals: list, pc_val: int) -> (str):
+    '''test the output values of the processor against given expected values'''
     myRiscProcessor = RISCProcessor()
     myRiscProcessor.parseInputData(inputfile)
     myRiscProcessor.loadProgramToMemory(programfile)
     status_regs, data_regs, memory, cache, pc, complexity = myRiscProcessor.execute()
     for k in sreg_vals.keys():
-        assert status_regs[k] == sreg_vals[k], "test: {name} - Status register {k}: excpected: {v} | actual: {vactual}"\
-            .format(name=testname, k=int(k), v=sreg_vals[k], vactual=status_regs[k])
+        assert status_regs[k] == sreg_vals[k], failString(testname, 'status register', k, sreg_vals[k], status_regs[k])
     
     for k in dreg_vals.keys():
-        assert data_regs[k] == dreg_vals[k], "test: {name} - Data register {k}: expected: {v} | actual: {vactual}"\
-            .format(name=testname, k=int(k), v=dreg_vals[k], vactual=data_regs[k])
+        assert data_regs[k] == dreg_vals[k], failString(testname, 'data register', k, dreg_vals[k], data_regs[k])
     # memory test
     for i, item in enumerate(cache_vals):
         key,value = cache.popitem(last = False)
-        assert key == item[0] and value == item[1], "test: {name} - Cache pos {i}: expected {e} | actual {a}"\
-            .format(name=testname, i=i, e=item, a=(key,value))
+        assert key == item[0] and value == item[1], failString(testname, 'cache', i, item, (key,value))
 
-    assert pc == pc_val, "test: {name} - Program counter: expected {v} | actual: {vactual}"\
-            .format(name=testname, v=pc_val, vactual=pc)
+    assert pc == pc_val, failString(testname, 'program counter', 0, pc_val, pc)
     return "OK"
 
 def main():
