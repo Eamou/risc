@@ -16,7 +16,24 @@ class RISCProcessor:
         self.cache = {}
         self.pc = 0
         self.run = True
-        self.complexity = 0;
+        self.complexity = 0
+
+    def _fetch(self, addr: str) -> (int):
+        '''Attempt to retrieve data from the cache - if not present, add it to
+        the cache based on LRU replacement policy, and fetch from memory instead.'''
+        if addr in self.cache.keys():
+            return self.cache[addr]
+        else:
+            # add LRU policy
+            self.cache[addr] = self.data_regs[addr]
+            return self.data_regs[addr]
+
+    def _write(self, addr: str, data: int) -> (None):
+        '''Write to data registers and cache - our cache is a write-through cache,
+        so whenever we write data to a data register, we also write to the cache.'''
+        self.data_regs[addr] = data
+        if addr in self.cache.keys():
+            self.cache[addr] = data
 
     def _halt(self, *args) -> (None):
         ''' HALT - stops machine'''
@@ -37,29 +54,32 @@ class RISCProcessor:
         '''LOAD - transfers contents of memory location to data register
         Eg: LOAD 0 1 = mem[0] -> dreg[1]
         '''
-        self.data_regs[args[1]] = self.memory.get(args[0], 0)
+        self._write(args[1], self.memory.get(args[0], 0))
         self.complexity += 2
 
     def _store(self, args: List[str]) -> (None):
         '''STORE - transfers contents of data register to specified memory location
         Eg: STORE 0 1 = dreg[0] -> dreg[1]
         '''
-        self.memory[args[1]] = self.data_regs[args[0]]
+        self.memory[args[1]] = self._fetch(args[0])
         self.complexity += 2
 
     def _logic(self, args: List[str], mode: str) -> (None):
         '''Deriving from the lambda functions in the instruction dictionary, this
         function performs arithmetic and comparison operations'''
-        arg1 = int(args[0][1:]) if args[0][0] == '#' else self.data_regs[args[0]]
+        arg1 = int(args[0][1:]) if args[0][0] == '#' else self._fetch(args[0])
         # use absolute value if # present, otherwise fetch from data register
-        arg2 = int(args[1][1:]) if args[1][0] == '#' else self.data_regs[args[1]]
+        arg2 = int(args[1][1:]) if args[1][0] == '#' else self._fetch(args[1])
+        result = None
         if mode == '+':
-            self.data_regs[args[2]] = arg1 + arg2
+            result = arg1 + arg2
         elif mode == '-':
-            self.data_regs[args[2]] = arg1 - arg2
+            result = arg1 - arg2
         elif mode == "*":
-            self.data_regs[args[2]] = arg1 * arg2
-        elif mode == "=":
+            result = arg1 * arg2
+        if result is not None:
+            self._write(args[2], result)
+        if mode == "=":
             self.status_regs[args[2]] = arg1 == arg2
         self.complexity += 4
 
@@ -161,7 +181,7 @@ class RISCProcessor:
             line_num += 1
         programfile.close()
 
-    def execute(self) -> (Tuple[dict[str, int], dict[str, int], dict[int, int], int, int]):
+    def execute(self) -> (Tuple[dict[str, int], dict[str, int], dict[int, int], dict[str, int], int, int]):
         '''Executes the program using the following logic:
         1) Retrieve instruction from memory address specified by Program Counter (pc)
         2) Increment program counter
@@ -178,14 +198,14 @@ class RISCProcessor:
                 self.instrs[instr](cur_instr[1:]) # cast addresses to integers from str.
             else:
                 break
-        return (self.status_regs, self.data_regs, self.memory, self.pc, self.complexity)
+        return (self.status_regs, self.data_regs, self.memory, self.cache, self.pc, self.complexity)
 
 
 def main():
     myRiscProcessor = RISCProcessor()
-    myRiscProcessor.parseInputData('./algos/sum/inputdata.txt')
-    myRiscProcessor.loadProgramToMemory('./algos/sum/program.txt')
-    status_regs, data_regs, memory, pc, complexity = myRiscProcessor.execute()
+    myRiscProcessor.parseInputData('./algos/factorial/inputdata.txt')
+    myRiscProcessor.loadProgramToMemory('./algos/factorial/program.txt')
+    status_regs, data_regs, memory, cache, pc, complexity = myRiscProcessor.execute()
 
     print('### BEGIN STATUS REGISTERS ###')
     print(status_regs)
@@ -193,6 +213,9 @@ def main():
     print('### BEGIN DATA REGISTERS ###')
     print(data_regs)
     print('### END DATA REGISTERS ###\n')
+    print('### BEGIN CACHE ###')
+    print(cache)
+    print('### END CACHE ###\n')
     print('### BEGIN MEMORY ###')
     print(memory)
     print('### END MEMORY ###\n')

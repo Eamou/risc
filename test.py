@@ -6,7 +6,7 @@ def test(testname:str, inputfile: str, programfile: str, sreg_vals: dict[str, in
     myRiscProcessor = RISCProcessor()
     myRiscProcessor.parseInputData(inputfile)
     myRiscProcessor.loadProgramToMemory(programfile)
-    status_regs, data_regs, memory, pc, complexity = myRiscProcessor.execute()
+    status_regs, data_regs, memory, cache, pc, complexity = myRiscProcessor.execute()
     for k in sreg_vals.keys():
         assert status_regs[k] == sreg_vals[k], "test: {name} - Status register {k}: excpected: {v} | actual: {vactual}"\
             .format(name=testname, k=int(k), v=sreg_vals[k], vactual=status_regs[k])
