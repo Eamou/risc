@@ -13,6 +13,7 @@ class RISCProcessor:
         self.data_regs = { str(x): 0 for x in range(data_reg_size) }
         self.status_regs = { str(x): 0 for x in range(status_reg_size) }
         self.memory = {}
+        self.cache = {}
         self.pc = 0
         self.run = True
         self.complexity = 0;
@@ -160,7 +161,7 @@ class RISCProcessor:
             line_num += 1
         programfile.close()
 
-    def execute(self) -> (Tuple[dict, dict, dict, int, int]):
+    def execute(self) -> (Tuple[dict[str, int], dict[str, int], dict[int, int], int, int]):
         '''Executes the program using the following logic:
         1) Retrieve instruction from memory address specified by Program Counter (pc)
         2) Increment program counter
@@ -207,6 +208,6 @@ if __name__ == '__main__':
 TODO:
 * DIV
 * linked lists how?
-* test suite
 * cache?
+* binary encoding
 '''

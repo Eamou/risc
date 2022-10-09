@@ -1,7 +1,7 @@
 
 from main import RISCProcessor
 
-def test(testname:str, inputfile: str, programfile: str, sreg_vals: dict[str, bool], dreg_vals: dict[str, int],\
+def test(testname:str, inputfile: str, programfile: str, sreg_vals: dict[str, int], dreg_vals: dict[str, int],\
          mem_vals: dict[int, int], pc_val: int) -> (str):
     myRiscProcessor = RISCProcessor()
     myRiscProcessor.parseInputData(inputfile)
