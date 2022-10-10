@@ -15,6 +15,18 @@ class RISCProcessor:
                         'SUB': (lambda x: self._logic(x, '-')), 
                         'MULT': lambda x: self._logic(x, '*')
                     }
+        self.bin_instr_lookup = {
+            '0000': 'NOP',
+            '0001': 'HALT',
+            '0010': 'CMP',
+            '0011': 'JMP', # reg conditional
+            '0100': 'JMP2', # not reg conditional
+            '0101': 'LOAD',
+            '0110': 'STORE',
+            '0111': 'ADD',
+            '1000': 'SUB',
+            '1001': 'MULT'
+        }
 
         # system variables
         self.data_regs = { str(x): 0 for x in range(data_reg_size) }
@@ -122,6 +134,44 @@ class RISCProcessor:
                 .format(addr = addr, maxaddr = len(self.data_regs)-1))
         inputdatafile.close()
 
+    def _decodeBinaryInstruction(self, instr: str) -> (Tuple[list, bool, str]):
+        valid_instr, err, split_instr = self._validateBinaryInstruction(instr.strip())
+        if valid_instr:
+            decoded_instr = []
+            instr_word, arg1, arg2, dest = self.bin_instr_lookup[split_instr[0]], split_instr[1], split_instr[2], split_instr[3]
+            if instr_word in ['CMP', 'ADD', 'SUB', 'MULT']:
+                decoded_instr = [instr_word, str(int(arg1,2)), str(int(arg2, 2)), str(int(dest, 2))]
+            elif instr_word in ['LOAD', 'STORE', 'JMP']:
+                decoded_instr = [instr_word, str(int(arg1,2)), str(int(arg2,2))]
+            elif instr_word == 'JMP2':
+                decoded_instr = ['JMP', str(int(arg1,2))]
+            else:
+                decoded_instr = [instr_word]
+            return (decoded_instr, True, "")
+        else:
+            return ([], False, err)
+
+    def _validateBinaryInstruction(self, instr: str) -> (Tuple[bool, str, list]):
+        '''Validates the instructions when given in 16bit binary encoding.
+        FORMAT:
+        [instr][arg1][arg2][dest]
+        with each component represented by 4 bits'''
+        if len(instr) != 16:
+            return (False, "Instructions must be 16 bits in length", [])
+        else:
+            # split array into each 4 bit block
+            instr, arg1, arg2, dest = [instr[i:i+4] for i in range(0, 16, 4)]
+            if instr not in self.bin_instr_lookup.keys():
+                return (False, "Instruction not recognised", [])
+            else:
+                try:
+                    int(arg1, 2)
+                    int(arg2, 2)
+                    int(dest, 2)
+                except ValueError:
+                    return (False, "Arguments must be valid binary strings", [])
+        return (True, "", [instr, arg1, arg2, dest])
+
     def _validateInstruction(self, instr: List[str]) -> (Tuple[bool, str]):
         '''This function will validate a given line from program.txt to see if it
         is a valid instruction as per keywords, number of and type of arguments'''
@@ -179,13 +229,16 @@ class RISCProcessor:
             raise Exception("{filename} does not exist, please check path".format(filename=filename))
         line_num = 0
         while True:
-            line = programfile.readline()
+            line, valid_instr, instr_as_arr, err = programfile.readline(), False, [], ""
             if not line: # if we reach the end of the file, stop
                 break
-            line_as_arr = line.strip().split(' ')
-            valid_instr, err = self._validateInstruction(line_as_arr)
+            if filename[-3:] == 'txt':
+                instr_as_arr = line.strip().split(' ')
+                valid_instr, err = self._validateInstruction(instr_as_arr)
+            elif filename[-3:] == 'bin':
+                instr_as_arr, valid_instr, err = self._decodeBinaryInstruction(line)
             if valid_instr:
-                self.memory[line_num] = line_as_arr # load instruction into next available memory addr
+                self.memory[line_num] = instr_as_arr # load instruction into next available memory addr
             else:
                 programfile.close()
                 raise Exception("line {ln}: {err}".format(ln = line_num+1, err = err))
@@ -216,7 +269,7 @@ class RISCProcessor:
 def main():
     myRiscProcessor = RISCProcessor()
     myRiscProcessor.parseInputData('./inputdata.txt')
-    myRiscProcessor.loadProgramToMemory('./program.txt')
+    myRiscProcessor.loadProgramToMemory('./program.bin')
     status_regs, data_regs, memory, cache, pc, complexity = myRiscProcessor.execute()
 
     print('### BEGIN STATUS REGISTERS ###')
