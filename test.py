@@ -3,8 +3,7 @@ from main import RISCProcessor
 
 def failString(testname: str, component: str, position, expected: int, actual) -> (str):
     '''create the string used to describe a test failure, given the components of the test'''
-    return  "test: {name} - {comp} {k}: excpected: {e} | actual: {a}"\
-            .format(name=testname, comp=component, k=int(position), e=expected, a=actual)
+    return  f'test: {testname} - {component} {position}: expected: {expected} | actual: {actual}'
 
 def test(testname:str, inputfile: str, programfile: str, sreg_vals: dict[str, int], dreg_vals: dict[str, int],\
          mem_vals: dict[int, int], cache_vals: list, pc_val: int) -> (str):
