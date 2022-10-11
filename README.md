@@ -50,7 +50,7 @@ We have implemented a cache for the processor, specifically, a write-through cac
 for this cache to be an arbitrary value of 4, though this can be changed as desired by simply passing a value to the RISCProcessor class constructor.
 
 To implement the LRU policy, we utilised the OrderedDict data structure. This is a Python dictionary that keeps track of the order in which items were inserted into
-the dictionary. This allows to easily keep track of which items have been used recently by moving them to the start of the dictionary whenever they are used, such that
+the dictionary. This allows us to easily keep track of which items have been used recently by moving them to the start of the dictionary whenever they are used, such that
 the least used element is then always the last element in the dictionary. This allows us to implement our LRU policy in constant time, as every operation with OrderedDict
 is O(1) thanks to its implementation over a Hash Map.
 
