@@ -63,7 +63,7 @@ class RISCProcessor:
     def _fetch(self, addr: str) -> (int):
         '''Attempt to retrieve data from the cache - if not present, add it to
         the cache based on LRU replacement policy, and fetch from memory instead.'''
-        if addr in self.cache: #dont need .keys()
+        if addr in self.cache:
             self.cache.move_to_end(addr) # move item to reflect most recently used
         else:
             self.cache[addr] = self.data_regs.get(addr, 0)
@@ -134,7 +134,7 @@ class RISCProcessor:
             with open(filename, 'r') as input_data_file:
                 lines = input_data_file.read().splitlines(keepends=False)
             for line in lines:
-                if not line: # stop at the end of the file
+                if not line: # skip empty lines
                     break
                 line_as_arr = line.strip().split(' ') # remove all \n and turn into array
                 if len(line_as_arr) != 2: # all lines must contain an address and data, always 2 numbers
@@ -149,8 +149,6 @@ class RISCProcessor:
         
         except FileNotFoundError:
             raise Exception("{filename} does not exist, please check the path".format(filename=filename))
-
-    #def _binaryToString
 
     def _decodeBinaryInstruction(self, instr: str) -> (list[str]):
         try:
@@ -192,7 +190,6 @@ class RISCProcessor:
                     raise ValidationException('Arguments must be valid binary strings')
         return [instr, arg1, arg2, dest]
 
-    # throw exception to catch from function call rather than returning bool + str
     def _validateInstruction(self, instr: List[str]) -> (None):
         '''This function will validate a given line from program.txt to see if it
         is a valid instruction as per keywords, number of and type of arguments'''
@@ -236,10 +233,6 @@ class RISCProcessor:
                 raise ValidationException('Arguments should be integers')
         else:
             raise ValidationException(f'{instr_word} is not a valid keyword')
-        '''TODO:
-        * check registers/memory are in range?
-        * comments?
-        '''
 
     def loadProgramToMemory(self, filename: str ='program.txt') -> (None):
         '''Attempts to read ./program.txt and loads program into memory, where program.txt is a list of
@@ -287,8 +280,8 @@ class RISCProcessor:
 
 def main():
     myRiscProcessor = RISCProcessor()
-    myRiscProcessor.parseInputData('./algos/fib/abs_val_ver/inputdata.txt')
-    myRiscProcessor.loadProgramToMemory('./algos/fib/abs_val_ver/program.txt')
+    myRiscProcessor.parseInputData('./inputdata.txt')
+    myRiscProcessor.loadProgramToMemory('./program.txt')
     status_regs, data_regs, memory, cache, pc, complexity = myRiscProcessor.execute()
 
     print(
@@ -316,9 +309,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-'''
-TODO:
-* DIV
-* binary encoding
-'''
