@@ -1,5 +1,11 @@
 
-from typing import List, OrderedDict, Tuple
+from typing import List, OrderedDict, Tuple, NewType, Union
+
+# type definitions for clearer data structures
+StatusRegisters = NewType("StatusRegisters", dict[str, int])
+DataRegisters = NewType("DataRegisters", dict[str, int])
+Memory = NewType("Memory", dict[int, Union[list, int]])
+Cache = NewType("Cache", OrderedDict[str, int])
 
 class ValidationException(Exception):
     def __init__(self, *args):
@@ -9,7 +15,7 @@ class ValidationException(Exception):
             super().__init__()
 
 class RISCProcessor:
-    def __init__(self, data_reg_size: int =10, status_reg_size: int =10, cache_size: int =4):
+    def __init__(self, data_reg_size: int = 10, status_reg_size: int = 10, cache_size: int = 4):
         # look-up table for instructions
         self.instrs = { 'NOP': (lambda x: x), # use lamdbas to 'route' into _logic() to avoid redundant methods
                         'HALT': self._halt, 
@@ -51,10 +57,10 @@ class RISCProcessor:
             }
 
         # system variables
-        self.data_regs = { str(x): 0 for x in range(data_reg_size) }
-        self.status_regs = { str(x): 0 for x in range(status_reg_size) }
-        self.memory = {}
-        self.cache = OrderedDict()
+        self.data_regs = DataRegisters({ str(x): 0 for x in range(data_reg_size) })
+        self.status_regs = StatusRegisters({ str(x): 0 for x in range(status_reg_size) })
+        self.memory = Memory({})
+        self.cache = Cache(OrderedDict())
         self.cache_capacity = cache_size
         self.pc = 0
         self.run = True
@@ -96,14 +102,17 @@ class RISCProcessor:
         '''LOAD - transfers contents of memory location to data register
         Eg: LOAD 0 1 = mem[0] -> dreg[1]
         '''
-        self._write(args[1], self.memory.get(args[0], 0))
+        fetch = self.memory.get(int(args[0]), 0)
+        if isinstance(fetch, list):
+            fetch = self.pc
+        self._write(args[1], fetch)
         self.complexity += 2
 
     def _store(self, args: List[str]) -> (None):
         '''STORE - transfers contents of data register to specified memory location
         Eg: STORE 0 1 = dreg[0] -> dreg[1]
         '''
-        self.memory[args[1]] = self._fetch(args[0])
+        self.memory[int(args[1])] = self._fetch(args[0])
         self.complexity += 2
 
     def _logic(self, args: List[str], mode: str) -> (None):
@@ -127,7 +136,7 @@ class RISCProcessor:
             self.status_regs[args[2]] = arg1 != arg2
         self.complexity += 4
 
-    def parseInputData(self, filename: str ='inputdata.txt') -> (None):
+    def parseInputData(self, filename: str = 'inputdata.txt') -> (None):
         '''Attempts to read ./inputdata.txt which contains data register locations & values to be put
         in those locations. Catches errors such as incorrect number of arguments and incorrect address type'''
         try:
@@ -155,7 +164,7 @@ class RISCProcessor:
             split_instr = self._validateBinaryInstruction(instr.strip())
         except ValidationException as e:
             raise ValidationException(f'Instruction validation error: {e}')
-        decoded_instr = []
+        decoded_instr = [] # *split_instr[1:]
         instr_word, *args = self.bin_instr_lookup[split_instr[0]], split_instr[1], split_instr[2], split_instr[3]
 
         num_args = self.num_args.get(instr_word, 0)
@@ -196,8 +205,10 @@ class RISCProcessor:
         instr_word = instr[0]
         if len(instr_word) < 3 or len(instr_word) > 5: # all instrs are 3/4/5 chars long
             raise ValidationException(f'{instr_word} is not a valid keyword')
+        
         if instr_word == 'NOP' or instr_word == 'HALT':
-            if len(instr) != 1: raise Exception(f'{instr_word} should have 0 arguments')
+            if len(instr) != 1: raise ValidationException(f'{instr_word} should have 0 arguments')
+        
         elif instr_word in ['ADD', 'SUB', 'CMP', 'MULT', 'CNE']: # instrs with 3 args
             if len(instr) != 4:
                 raise ValidationException(f'{instr_word} should have 3 arguments')
@@ -212,6 +223,7 @@ class RISCProcessor:
                         int(arg[1:])
                     except ValueError:
                         raise ValidationException(f'{instr_word} # must be followed by integer')
+            
             try:
                 int(instr[3]) # final argument is result destination in data reg, so must be int
             except ValueError:
@@ -224,6 +236,7 @@ class RISCProcessor:
                 list(map(int,instr[1:])) # try to convert args to ints from strs
             except ValueError:
                 raise ValidationException('Arguments should be integers')
+        
         elif instr_word == 'JMP': # JMP can have 1 or 2 arguments
             if len(instr) < 2 or len(instr) > 3:
                 raise ValidationException(f'{instr_word} should have 1 or 2 arguments')
@@ -231,33 +244,35 @@ class RISCProcessor:
                 list(map(int,instr[1:])) # try to convert args to ints from strs
             except ValueError:
                 raise ValidationException('Arguments should be integers')
+        
         else:
             raise ValidationException(f'{instr_word} is not a valid keyword')
 
-    def loadProgramToMemory(self, filename: str ='program.txt') -> (None):
+    def loadProgramToMemory(self, filename: str = 'program.txt') -> (None):
         '''Attempts to read ./program.txt and loads program into memory, where program.txt is a list of
         line-separated instructions'''
         try:
             with open(filename, 'r') as program_file:
                 lines = program_file.read().splitlines(keepends=False)
-            for line_num, line in enumerate(lines):
-                instr_as_arr= []
-                if not line.strip():
-                    continue
-                try:
-                    if filename[-3:] == 'txt':
-                        instr_as_arr = line.strip().split(' ')
-                        self._validateInstruction(instr_as_arr)
-                    elif filename[-3:] == 'bin':
-                        instr_as_arr = self._decodeBinaryInstruction(line)
-                    self.memory[line_num] = instr_as_arr # load instruction into next available memory addr
-                except ValidationException as e:
-                    raise ValidationException(f'line {line_num+1}: {e}')
-                line_num += 1
         except FileNotFoundError:
             raise Exception(f'{filename} does not exist, please check path')
+        
+        for line_num, line in enumerate(lines):
+            instr_as_arr= []
+            if not line.strip():
+                continue
+            try:
+                if filename[-3:] == 'txt':
+                    instr_as_arr = line.strip().split(' ')
+                    self._validateInstruction(instr_as_arr)
+                elif filename[-3:] == 'bin':
+                    instr_as_arr = self._decodeBinaryInstruction(line)
+                self.memory[line_num] = instr_as_arr # load instruction into next available memory addr
+            except ValidationException as e:
+                raise ValidationException(f'line {line_num+1}: {e}')
+            line_num += 1
 
-    def execute(self) -> (Tuple[dict[str, int], dict[str, int], dict[int, int], OrderedDict[str, int], int, int]):
+    def execute(self) -> (Tuple[StatusRegisters, DataRegisters, Memory, Cache, int, int]):
         '''Executes the program using the following logic:
         1) Retrieve instruction from memory address specified by Program Counter (pc)
         2) Increment program counter
@@ -275,7 +290,7 @@ class RISCProcessor:
                 self.instrs[instr](cur_instr[1:])
             else:
                 break
-        return (self.status_regs, self.data_regs, self.memory, self.cache, self.pc, self.complexity)
+        return (StatusRegisters(self.status_regs), DataRegisters(self.data_regs), Memory(self.memory), Cache(self.cache), self.pc, self.complexity)
 
 
 def main():
