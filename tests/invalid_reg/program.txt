@@ -1,0 +1,7 @@
+ADD 0 #0 #1
+SUB 1 #1 1
+CMP 1 #0 0
+JMP 7 0
+MULT 0 1 0
+JMP 1
+HALT
