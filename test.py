@@ -36,6 +36,8 @@ def main():
     results['cacheTest'] = test('cache test', './algos/cache_test/inputdata.txt',\
         './algos/cache_test/program.txt', {'0': 0}, {'0': 1, '1': 2, '2': 3, '3': 4, '4': 5, '5': 6},\
             {}, [('3', 4), ('5', 6), ('2', 3), ('4', 5)], 8)
+    results['binFibTest'] = test('binary fibonacci test', './algos/fib/binary/inputdata.txt',\
+        './algos/fib/binary/program.bin', {'0': True}, {'0': 8, '1': 13}, {}, [], 10)
     print("starting tests...\n")
     for k in results.keys():
         print("{k}: {v}".format(k=k, v=results[k]))

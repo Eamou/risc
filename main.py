@@ -125,113 +125,111 @@ class RISCProcessor:
         '''Attempts to read ./inputdata.txt which contains data register locations & values to be put
         in those locations. Catches errors such as incorrect number of arguments and incorrect address type'''
         try:
-            input_data_file = open(filename, 'r')
+            with open(filename, 'r') as input_data_file:
+                lines = input_data_file.read().splitlines(keepends=False)
+            for line in lines:
+                if not line: # stop at the end of the file
+                    break
+                line_as_arr = line.strip().split(' ') # remove all \n and turn into array
+                if len(line_as_arr) != 2: # all lines must contain an address and data, always 2 numbers
+                    raise Exception('Lines should contain exactly two numbers: [address] [data]')
+                addr, data = line_as_arr
+                if int(addr) < len(self.data_regs): # if the register exists
+                    if not addr.isnumeric():
+                        raise Exception("Address should be a number")
+                    self.data_regs[addr] = int(data)
+                else:
+                    raise Exception(f'Memory address {addr} not in range: 0-{len(self.data_regs)-1}')
+        
         except FileNotFoundError:
             raise Exception("{filename} does not exist, please check the path".format(filename=filename))
-        while True:
-            line = input_data_file.readline()
-            if not line: # stop at the end of the file
-                break
-            line_as_arr = line.strip().split(' ') # remove all \n and turn into array
-            if len(line_as_arr) != 2: # all lines must contain an address and data, always 2 numbers
-                input_data_file.close()
-                raise Exception('Lines should contain exactly two numbers: [address] [data]')
-            addr, data = line_as_arr
-            if int(addr) < len(self.data_regs): # if the register exists
-                if not addr.isnumeric():
-                    input_data_file.close()
-                    raise Exception("Address should be a number")
-                self.data_regs[addr] = int(data)
-            else:
-                input_data_file.close()
-                raise Exception(f'Memory address {addr} not in range: 0-{len(self.data_regs)-1}')
-        input_data_file.close()
 
     #def _binaryToString
 
-    def _decodeBinaryInstruction(self, instr: str) -> (Tuple[list, bool, str]):
-        valid_instr, err, split_instr = self._validateBinaryInstruction(instr.strip())
-        if valid_instr:
-            decoded_instr = []
-            instr_word, *args = self.bin_instr_lookup[split_instr[0]], split_instr[1], split_instr[2], split_instr[3]
+    def _decodeBinaryInstruction(self, instr: str) -> (list[str]):
+        try:
+            split_instr = self._validateBinaryInstruction(instr.strip())
+        except Exception as e:
+            raise Exception(f'Instruction validation error: {e}')
+        decoded_instr = []
+        instr_word, *args = self.bin_instr_lookup[split_instr[0]], split_instr[1], split_instr[2], split_instr[3]
 
-            num_args = self.num_args.get(instr_word, 0)
+        num_args = self.num_args.get(instr_word, 0)
 
-            args = args[:num_args]
+        args = args[:num_args]
 
-            if instr_word == 'JMP2':
-                instr_word = 'JMP'
+        if instr_word == 'JMP2':
+            instr_word = 'JMP'
 
-            decoded_instr = [instr_word] + [str(int(arg, 2)) for arg in args]
+        decoded_instr = [instr_word] + [str(int(arg, 2)) for arg in args]
 
-            return (decoded_instr, True, "")
-        else:
-            return ([], False, err)
+        return decoded_instr
 
-    def _validateBinaryInstruction(self, instr: str) -> (Tuple[bool, str, list]):
+    def _validateBinaryInstruction(self, instr: str) -> (list[str]):
         '''Validates the instructions when given in 16bit binary encoding.
         FORMAT:
         [instr][arg1][arg2][dest]
         with each component represented by 4 bits'''
         if len(instr) != 16:
-            return (False, "Instructions must be 16 bits in length", [])
+            raise Exception('Instructions must be 16 bits in length')
         else:
             # split array into each 4 bit block
             instr, arg1, arg2, dest = [instr[i:i+4] for i in range(0, 16, 4)]
             if instr not in self.bin_instr_lookup.keys():
-                return (False, "Instruction not recognised", [])
+                raise Exception(f'Instruction not recognised: {instr}')
             else:
                 try:
                     int(arg1, 2)
                     int(arg2, 2)
                     int(dest, 2)
                 except ValueError:
-                    return (False, "Arguments must be valid binary strings", [])
-        return (True, "", [instr, arg1, arg2, dest])
+                    raise Exception('Arguments must be valid binary strings')
+        return [instr, arg1, arg2, dest]
 
     # throw exception to catch from function call rather than returning bool + str
-    def _validateInstruction(self, instr: List[str]) -> (Tuple[bool, str]):
+    def _validateInstruction(self, instr: List[str]) -> (None):
         '''This function will validate a given line from program.txt to see if it
         is a valid instruction as per keywords, number of and type of arguments'''
         instr_word = instr[0]
         if len(instr_word) < 3 or len(instr_word) > 5: # all instrs are 3/4/5 chars long
-            return (False, instr_word + ' is not a valid keyword')
+            raise Exception(f'{instr_word} is not a valid keyword')
         if instr_word == 'NOP' or instr_word == 'HALT':
-            return (True, '') if len(instr) == 1 else (False, instr_word + ' should have 0 arguments')
+            if len(instr) != 1: raise Exception(f'{instr_word} should have 0 arguments')
         elif instr_word in ['ADD', 'SUB', 'CMP', 'MULT', 'CNE']: # instrs with 3 args
             if len(instr) != 4:
-                return (False, instr_word + ' should have 3 arguments')
-            else: # handle direct values as arguments
-                for arg in instr[1:3]: # middle 2 can be int or #int
-                    try:
-                        int(arg)
-                    except ValueError:
-                        if arg[0] != '#' or len(arg) == 1: # cannot be just #, but must start with #
-                            return (False, instr_word + ' arguments 1 and 2 must be int or #int')
-                        else:
-                            try: # anything after # must be an integer
-                                int(arg[1:])
-                            except ValueError:
-                                return (False, instr_word + ' # must be followed by integer')
+                raise Exception(f'{instr_word} should have 3 arguments')
+            # handle direct values as arguments
+            for arg in instr[1:3]: # middle 2 can be int or #int
                 try:
-                    int(instr[3]) # final argument is result destination in data reg, so must be int
-                    return (True, '')
+                    int(arg)
                 except ValueError:
-                    return (False, instr_word + ' final argument must be int')
+                    if arg[0] != '#' or len(arg) == 1: # cannot be just #, but must start with #
+                        raise Exception(f'{instr_word} arguments 1 and 2 must be int or #int')
+                    try: # anything after # must be an integer
+                        int(arg[1:])
+                    except ValueError:
+                        raise Exception(f'{instr_word} # must be followed by integer')
+            try:
+                int(instr[3]) # final argument is result destination in data reg, so must be int
+            except ValueError:
+                raise Exception(f'{instr_word} final argument must be int')
                     
         elif instr_word == 'LOAD' or instr_word == 'STORE': # instrs with 2 args
             if len(instr) != 3:
-                return (False, instr_word + ' should have 2 arguments')
+                raise Exception(f'{instr_word} should have 2 arguments')
+            try:
+                list(map(int,instr[1:])) # try to convert args to ints from strs
+            except ValueError:
+                raise Exception('Arguments should be integers')
         elif instr_word == 'JMP': # JMP can have 1 or 2 arguments
             if len(instr) < 2 or len(instr) > 3:
-                return (False, instr_word + ' should have 1 or 2 arguments')
+                raise Exception(f'{instr_word} should have 1 or 2 arguments')
+            try:
+                list(map(int,instr[1:])) # try to convert args to ints from strs
+            except ValueError:
+                raise Exception('Arguments should be integers')
         else:
-            return (False, instr_word + ' is not a valid keyword')
-        try:
-            list(map(int,instr[1:])) # try to convert args to ints from strs
-            return (True, '')
-        except ValueError:
-            return (False, 'Arguments should be integers')
+            raise Exception(f'{instr_word} is not a valid keyword')
         '''TODO:
         * check registers/memory are in range?
         * comments?
@@ -244,18 +242,18 @@ class RISCProcessor:
             with open(filename, 'r') as program_file:
                 lines = program_file.read().splitlines(keepends=False)
             for line_num, line in enumerate(lines):
-                valid_instr, instr_as_arr, err = False, [], ""
+                instr_as_arr= []
                 if not line.strip():
                     continue
-                if filename[-3:] == 'txt':
-                    instr_as_arr = line.strip().split(' ')
-                    valid_instr, err = self._validateInstruction(instr_as_arr)
-                elif filename[-3:] == 'bin':
-                    instr_as_arr, valid_instr, err = self._decodeBinaryInstruction(line)
-                if valid_instr:
+                try:
+                    if filename[-3:] == 'txt':
+                        instr_as_arr = line.strip().split(' ')
+                        self._validateInstruction(instr_as_arr)
+                    elif filename[-3:] == 'bin':
+                        instr_as_arr = self._decodeBinaryInstruction(line)
                     self.memory[line_num] = instr_as_arr # load instruction into next available memory addr
-                else:
-                    raise Exception(f'line {line_num+1}: {err}')
+                except Exception as e:
+                    raise Exception(f'line {line_num+1}: {e}')
                 line_num += 1
         except FileNotFoundError:
             raise Exception(f'{filename} does not exist, please check path')
