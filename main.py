@@ -281,7 +281,7 @@ class RISCProcessor:
 def main():
     myRiscProcessor = RISCProcessor()
     myRiscProcessor.parseInputData('./inputdata.txt')
-    myRiscProcessor.loadProgramToMemory('./program.bin')
+    myRiscProcessor.loadProgramToMemory('./program.txt')
     status_regs, data_regs, memory, cache, pc, complexity = myRiscProcessor.execute()
 
     print(
