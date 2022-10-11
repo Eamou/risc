@@ -85,4 +85,4 @@ To implement linked lists in our RISC processor, we propose the following scheme
 
 ### Improvements
 We note that the function ```validateInstruction()``` is quite cumbersome to read, though not actually too complex in terms of the actual logic. To aid this, we propose
-that we would implement an Instruction class, with subclasses for each particular instruction. From this, we can set up rules for instantiation of these subclasses such that the validation is largely 'outsourced' to the class, improving code readability.
+that we would implement an ```Instruction``` class, with subclasses for each particular instruction. From this, we can set up rules for instantiation of these subclasses such that the validation is largely 'outsourced' to the class, improving code readability.
